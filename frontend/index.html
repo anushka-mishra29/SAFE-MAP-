@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SafeMap - Public Safety Mapping Web Application">
+    <title>SafeMap | Public Safety Mapping</title>
+
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          crossorigin="">
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+<header class="topbar">
+    <div class="brand">
+        <div class="brand-icon">🛡️</div>
+        <div>
+            <h1>SafeMap</h1>
+            <p>Public Safety Mapping</p>
+        </div>
+    </div>
+
+    <div class="top-actions">
+        <button id="themeToggle" class="icon-btn" title="Toggle light/dark mode">☀️</button>
+        <button id="locateBtn" class="secondary-btn">📍 Locate Me</button>
+    </div>
+</header>
+
+<main class="app-shell">
+    <aside class="sidebar">
+        <section class="hero-card">
+            <span class="eyebrow">COMMUNITY SAFETY</span>
+            <h2>Understand your surroundings.</h2>
+            <p>Explore demo safety zones, emergency facilities and community reports.</p>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h3>Search location</h3>
+                <span id="apiStatus" class="status-dot" title="API status"></span>
+            </div>
+
+            <div class="search-row">
+                <input id="searchInput" type="search" placeholder="Search a place..." autocomplete="off">
+                <button id="searchBtn" class="primary-btn">Search</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h3>Safety Legend</h3>
+            </div>
+
+            <div class="legend-list">
+                <div><span class="legend-dot safe"></span><span>Safe</span><strong>75–100</strong></div>
+                <div><span class="legend-dot moderate"></span><span>Moderate</span><strong>50–74</strong></div>
+                <div><span class="legend-dot caution"></span><span>Requires Caution</span><strong>0–49</strong></div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h3>Map layers</h3>
+            </div>
+
+            <label class="toggle-row">
+                <span>🚓 Police stations</span>
+                <input type="checkbox" id="policeToggle" checked>
+            </label>
+            <label class="toggle-row">
+                <span>🏥 Hospitals</span>
+                <input type="checkbox" id="hospitalToggle" checked>
+            </label>
+            <label class="toggle-row">
+                <span>🛟 Safe booths / pharmacies</span>
+                <input type="checkbox" id="shelterToggle" checked>
+            </label>
+            <label class="toggle-row">
+                <span>📝 Community reports</span>
+                <input type="checkbox" id="reportsToggle" checked>
+            </label>
+        </section>
+
+        <section class="panel quick-stats">
+            <div class="stat-card">
+                <span id="locationCount">0</span>
+                <small>Safety zones</small>
+            </div>
+            <div class="stat-card">
+                <span id="reportCount">0</span>
+                <small>Reports</small>
+            </div>
+            <div class="stat-card">
+                <span id="placeCount">0</span>
+                <small>Facilities</small>
+            </div>
+        </section>
+
+        <button id="reportBtn" class="report-btn" type="button" aria-pressed="false">📝 Report an Issue</button>
+    </aside>
+
+    <section class="map-area">
+        <div id="map"></div>
+
+        <div class="map-search-hint">
+            <span>💡</span>
+            <span>Search an address above, or choose “Report an Issue” to place a report on the map.</span>
+        </div>
+
+        <button id="sosBtn" class="sos-btn" aria-label="Emergency SOS">
+            <span class="sos-pulse"></span>
+            <span>🆘 SOS</span>
+        </button>
+
+        <div id="toastContainer" class="toast-container"></div>
+    </section>
+</main>
+
+<!-- Report Modal -->
+<div id="reportModal" class="modal hidden">
+    <div class="modal-card">
+        <button class="close-btn" data-close="reportModal">×</button>
+        <div class="modal-header">
+            <span class="modal-icon">📝</span>
+            <div>
+                <h2>Report an Issue</h2>
+                <p id="reportCoordinates">Select a location on the map.</p>
+            </div>
+        </div>
+
+        <form id="reportForm">
+            <input type="hidden" id="reportLat">
+            <input type="hidden" id="reportLon">
+
+            <label>
+                Incident Type
+                <select id="incidentType" required>
+                    <option value="">Select incident type</option>
+                    <option>Poor Lighting</option>
+                    <option>Harassment</option>
+                    <option>Isolated Area</option>
+                    <option>Theft</option>
+                    <option>Road Hazard</option>
+                    <option>Other</option>
+                </select>
+            </label>
+
+            <label>
+                Description
+                <textarea id="description" rows="4" maxlength="2000"
+                          placeholder="Briefly describe what happened..." required></textarea>
+            </label>
+
+            <label>
+                Severity: <strong><span id="severityValue">3</span>/5</strong>
+                <input id="severity" type="range" min="1" max="5" value="3">
+                <div class="range-labels"><span>Low</span><span>High</span></div>
+            </label>
+
+            <div class="form-actions">
+                <button type="button" class="secondary-btn" data-close="reportModal">Cancel</button>
+                <button type="submit" class="primary-btn">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SOS Modal -->
+<div id="sosModal" class="modal hidden">
+    <div class="modal-card sos-card">
+        <button class="close-btn" data-close="sosModal">×</button>
+        <div class="modal-header">
+            <span class="modal-icon">🆘</span>
+            <div>
+                <h2>Emergency SOS</h2>
+                <p id="sosStatus">Getting your current location...</p>
+            </div>
+        </div>
+
+        <div class="sos-location-box">
+            <span>📍 Current coordinates</span>
+            <strong id="sosCoordinates">Locating...</strong>
+        </div>
+
+        <div class="sos-actions">
+            <a id="smsLink" class="sos-link sms" href="#">📱 Send SMS</a>
+            <a id="whatsappLink" class="sos-link whatsapp" href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
+            <a id="mapsLink" class="sos-link maps" href="#" target="_blank" rel="noopener">🗺️ Open Maps</a>
+        </div>
+
+        <p class="safety-note">
+            SafeMap is a prototype. The SOS action prepares a location-sharing message;
+            it does not silently contact emergency services.
+        </p>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
